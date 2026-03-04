@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>角色即時產圖 MVP</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; padding: 16px; }
+    label { display:block; margin-top: 12px; }
+    input, select, button, textarea { width: 100%; padding: 10px; margin-top: 6px; font-size: 16px; }
+    button { cursor: pointer; }
+    .row { display:flex; gap:12px; }
+    .row > div { flex:1; }
+    img { width: 100%; max-width: 520px; border-radius: 12px; margin-top: 16px; }
+    .hint { color:#555; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h2>🎭 角色即時產圖 MVP</h2>
+
+  <label>職業</label>
+  <select id="job">
+    <option value="steampunk alchemist">煉金術士（蒸汽龐克）</option>
+    <option value="fantasy knight">騎士（奇幻）</option>
+    <option value="mystic oracle">占卜師（神秘）</option>
+    <option value="cyberpunk hacker">駭客（賽博龐克）</option>
+  </select>
+
+  <div class="row">
+    <div>
+      <label>力量 (0-10)</label>
+      <input id="str" type="number" min="0" max="10" value="5">
+    </div>
+    <div>
+      <label>智慧 (0-10)</label>
+      <input id="int" type="number" min="0" max="10" value="5">
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>魅力 (0-10)</label>
+      <input id="cha" type="number" min="0" max="10" value="5">
+    </div>
+    <div>
+      <label>黑暗值 (0-10)</label>
+      <input id="dark" type="number" min="0" max="10" value="1">
+    </div>
+  </div>
+
+  <label>自訂描述（可空白）</label>
+  <textarea id="extra" rows="3" placeholder="例：戴單片眼鏡、披風有貓爪徽章、表情冷淡…"></textarea>
+
+  <button id="go">生成角色圖</button>
+  <div class="hint" id="status"></div>
+
+  <img id="img" alt="" style="display:none;" />
+
+<script>
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjA03sZGEIr6-IX_b1Y2rEWzDHNGqERnrbyMwuAWKor5Bs8PHQu7IqeJOefOu2ZILm/exec"; // <-- 改成你的 /exec URL
+
+function buildPrompt() {
+  const job = document.getElementById("job").value;
+  const str = +document.getElementById("str").value || 0;
+  const intel = +document.getElementById("int").value || 0;
+  const cha = +document.getElementById("cha").value || 0;
+  const dark = +document.getElementById("dark").value || 0;
+  const extra = (document.getElementById("extra").value || "").trim();
+
+  // 小技巧：用屬性去「推」視覺方向
+  const vibe =
+    dark >= 7 ? "corrupted by shadow magic, ominous aura, darker outfit"
+    : dark >= 4 ? "slightly dark mystical tone, subtle shadow motifs"
+    : "heroic, clean design, hopeful tone";
+
+  const power =
+    str >= 7 ? "strong physique, battle-worn details"
+    : str <= 3 ? "slender build, nimble look"
+    : "balanced build";
+
+  const mind =
+    intel >= 7 ? "intricate accessories, arcane symbols"
+    : intel <= 3 ? "simple gear, practical look"
+    : "moderate details";
+
+  const charm =
+    cha >= 7 ? "captivating eyes, stylish outfit"
+    : cha <= 3 ? "reserved expression, plain style"
+    : "neutral charisma";
+
+  return [
+    "RPG character portrait, high quality, centered,",
+    job + ",",
+    vibe + ",",
+    power + ",",
+    mind + ",",
+    charm + ",",
+    "no text, no watermark, plain background,",
+    extra ? ("details: " + extra) : ""
+  ].join(" ");
+}
+
+document.getElementById("go").addEventListener("click", async () => {
+  const status = document.getElementById("status");
+  const img = document.getElementById("img");
+
+  status.textContent = "⏳ 生成中（約 5–15 秒，視網路而定）…";
+  img.style.display = "none";
+  img.src = "";
+
+  const prompt = buildPrompt();
+
+  try {
+    const r = await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    const j = await r.json();
+
+    if (!j.ok) throw new Error(j.error || ("HTTP " + r.status));
+
+    img.src = "data:image/png;base64," + j.b64;
+    img.style.display = "block";
+    status.textContent = "✅ 完成！你可以長按圖片保存。";
+  } catch (e) {
+    status.textContent = "❌ 失敗：" + e.message;
+  }
+});
+</script>
+</body>
+</html>
